@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fechamento Contábil — Painel Executivo (Nuvem)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- TELA DE PIN DE ACESSO DA EQUIPE -->
+  <div id="pinOverlay" class="pin-overlay">
+    <div class="pin-card">
+      <div class="pin-logo">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      </div>
+      <h2>Acesso Restrito — Controladoria</h2>
+      <p>Digite o PIN da equipe para acessar o painel de fechamento contábil em tempo real.</p>
+      <div class="pin-input-row">
+        <input type="password" id="pinInput" class="pin-input" placeholder="••••" maxlength="12" onkeydown="if(event.key==='Enter') checkTeamPin()" />
+        <button class="btn btn-primary" onclick="checkTeamPin()">Entrar</button>
+      </div>
+      <span id="pinErrorMsg" class="pin-error"></span>
+    </div>
+  </div>
+
+  <header class="topbar">
+    <div class="container">
+      <div class="header-inner">
+        <div class="brand">
+          <div class="brand-logo" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 3v18h18"/>
+              <path d="M18 17V9"/>
+              <path d="M13 17V5"/>
+              <path d="M8 17v-3"/>
+            </svg>
+          </div>
+          <div>
+            <div class="brand-title-row">
+              <h1>Fechamento Contábil</h1>
+              <div class="comp-pill-wrap">
+                <span class="comp-dot"></span>
+                <select id="competenciaSelect" class="competencia-select" title="Selecionar Competência"></select>
+              </div>
+              <div id="syncBadge" class="sync-badge connecting" title="Status da sincronização em tempo real com a equipe">
+                <span class="sync-dot"></span>
+                <span id="syncText">Conectando...</span>
+              </div>
+            </div>
+            <p class="brand-sub">Controladoria & Conciliações Mensais • Sincronizado em Tempo Real</p>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <button class="btn btn-ghost-light" onclick="openNewTaskModal()">
+            <span class="btn-ico">+</span> Nova Atividade
+          </button>
+          <button class="btn btn-gold" onclick="copyManagerSummary()">
+            <span class="btn-ico">📋</span> Copiar Resumo p/ Gestor
+          </button>
+        </div>
+      </div>
+
+      <nav class="tabs" role="tablist">
+        <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard', this)">
+          <span class="tab-ico">📊</span> Dashboard Executivo
+        </button>
+        <button class="tab-btn" data-tab="atividades" onclick="switchTab('atividades', this)">
+          <span class="tab-ico">✅</span> Status & Atividades <span id="tabCountAtividades" class="badge-count">32</span>
+        </button>
+        <button class="tab-btn" data-tab="relatorios" onclick="switchTab('relatorios', this)">
+          <span class="tab-ico">📁</span> Relatórios Pendentes <span id="tabCountRelatorios" class="badge-count alert">6</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- AVISO DE CONFIGURAÇÃO DO FIREBASE (APARECE APENAS ENQUANTO NÃO COLAR AS CHAVES) -->
+    <div id="firebaseSetupBanner" class="setup-banner" style="display:none;">
+      <div>
+        <strong>⚠️ Configuração do Firebase Pendente:</strong> O painel está funcionando em modo local de demonstração. Para ativar a sincronização em tempo real entre os 4 assistentes e o gestor, abra o arquivo <code>firebase-config.js</code> e cole as chaves do seu projeto Firebase.
+      </div>
+    </div>
+
+    <!-- ABA 1: DASHBOARD -->
+    <section id="view-dashboard" class="view active">
+      <div class="kpi-grid">
+        <div class="kpi-card kpi-hero" onclick="goToFilteredTasks('ALL')">
+          <div class="kpi-top">
+            <span class="kpi-label">Progresso Consolidado (<span id="kpiCompLabel"></span>)</span>
+            <span class="kpi-badge-hero">Geral</span>
+          </div>
+          <div class="kpi-value" id="kpiPercent">0%</div>
+          <div class="kpi-sub" id="kpiPercentSub">0 de 32 atividades concluídas</div>
+        </div>
+
+        <div class="kpi-card kpi-emerald" onclick="goToFilteredTasks('concluido')">
+          <div class="kpi-top">
+            <span class="kpi-label">Concluídas</span>
+            <span class="kpi-icon-box emerald">✓</span>
+          </div>
+          <div class="kpi-value" id="kpiDone">0</div>
+          <div class="kpi-sub" id="kpiDonePct">0% do cronograma</div>
+        </div>
+
+        <div class="kpi-card kpi-amber" onclick="goToFilteredTasks('andamento')">
+          <div class="kpi-top">
+            <span class="kpi-label">Em Andamento</span>
+            <span class="kpi-icon-box amber">⏳</span>
+          </div>
+          <div class="kpi-value" id="kpiProgress">0</div>
+          <div class="kpi-sub" id="kpiProgressPct">0% em execução</div>
+        </div>
+
+        <div class="kpi-card kpi-rose" onclick="goToFilteredTasks('pendente')">
+          <div class="kpi-top">
+            <span class="kpi-label">Pendentes / Bloqueadas</span>
+            <span class="kpi-icon-box rose">!</span>
+          </div>
+          <div class="kpi-value" id="kpiPending">0</div>
+          <div class="kpi-sub" id="kpiPendingSub">Aguardando resolução</div>
+        </div>
+      </div>
+
+      <div class="card progress-panel">
+        <div class="progress-header">
+          <div>
+            <h2>Evolução do Fechamento Mensal</h2>
+            <p class="sub-caption">Distribuição proporcional do cronograma na competência selecionada</p>
+          </div>
+          <span id="progressRatioText" class="ratio-pill">0/32 concluídas (0%)</span>
+        </div>
+        <div class="progress-bar-track">
+          <div id="segDone" class="progress-seg" style="background: var(--emerald); width: 0%;"></div>
+          <div id="segProgress" class="progress-seg" style="background: var(--amber); width: 0%;"></div>
+          <div id="segPending" class="progress-seg" style="background: var(--rose); width: 0%;"></div>
+          <div id="segNotStarted" class="progress-seg" style="background: #cbd5e1; width: 0%;"></div>
+        </div>
+        <div class="legend-row">
+          <div class="legend-item"><span class="dot" style="background: var(--emerald);"></span> Concluído</div>
+          <div class="legend-item"><span class="dot" style="background: var(--amber);"></span> Em Andamento</div>
+          <div class="legend-item"><span class="dot" style="background: var(--rose);"></span> Pendente / Bloqueado</div>
+          <div class="legend-item"><span class="dot" style="background: #94a3b8;"></span> Não Iniciado</div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Distribuição por Status</h3>
+              <span class="card-head-sub">Participação percentual das tarefas</span>
+            </div>
+          </div>
+          <div class="donut-wrap">
+            <div class="donut-center">
+              <svg class="donut-svg" viewBox="0 0 36 36" id="donutChart"></svg>
+              <div class="donut-text">
+                <strong id="donutCenterPct">0%</strong>
+                <span>Concluído</span>
+              </div>
+            </div>
+            <div id="donutBreakdown" class="donut-breakdown"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div>
+              <h3>Avanço por Área Contábil</h3>
+              <span class="card-head-sub">Clique no nome ou ícone para renomear ou excluir áreas</span>
+            </div>
+            <button class="btn btn-outline-primary btn-sm" onclick="openNewAreaModal()">+ Nova Área</button>
+          </div>
+          <div id="areaBarsContainer" class="area-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABA 2: STATUS & ATIVIDADES -->
+    <section id="view-atividades" class="view">
+      <div class="card filter-panel">
+        <div class="toolbar">
+          <div class="search-wrap">
+            <span class="search-ico">🔍</span>
+            <input type="text" id="searchTaskInput" class="search-input" placeholder="Buscar atividade, área ou responsável (ex: Bancos, Fornecedores, SPED, Jefferson...)" oninput="renderTasks()" />
+          </div>
+          <select id="filterStatusSelect" class="select-input" onchange="renderTasks()">
+            <option value="ALL">Todos os Status</option>
+            <option value="concluido">✅ Concluído</option>
+            <option value="andamento">⏳ Em Andamento</option>
+            <option value="pendente">⚠️ Pendente</option>
+            <option value="nao_iniciado">⚪ Não Iniciado</option>
+          </select>
+          <select id="filterAreaSelect" class="select-input" onchange="renderTasks()"></select>
+        </div>
+        <div class="toolbar-footer">
+          <span>💡 Clique no <strong>título</strong>, no <strong>responsável</strong> ou em <strong>Editar</strong> para alterar. Todas as edições atualizam ao vivo para toda a equipe.</span>
+        </div>
+      </div>
+
+      <div id="tasksListContainer" class="task-list"></div>
+    </section>
+
+    <!-- ABA 3: RELATÓRIOS PENDENTES -->
+    <section id="view-relatorios" class="view">
+      <div class="card filter-panel">
+        <div class="card-head" style="margin-bottom: 12px; padding-bottom: 10px;">
+          <div>
+            <h3>Registrar Relatório / Documento Aguardando Entrega</h3>
+            <span class="card-head-sub">Itens registrados aqui são replicados automaticamente para os próximos meses</span>
+          </div>
+        </div>
+        <div class="report-form-grid">
+          <input type="text" id="repTitleInput" class="text-input" placeholder="Descrição do relatório (ex: Verbas, FINIMP, Relatório de PA...)" />
+          <input type="text" id="repDeptInput" class="text-input" placeholder="Área / Setor solicitante (ex: Financeiro, Fiscal)" />
+          <input type="text" id="repDueInput" class="text-input" placeholder="Previsão / Prazo (ex: 5º dia útil)" />
+          <button class="btn btn-primary" onclick="addReport()">+ Registrar Pendência</button>
+        </div>
+      </div>
+
+      <div id="reportsListContainer" class="task-list"></div>
+    </section>
+  </main>
+
+  <!-- MODAL NOVA ATIVIDADE -->
+  <div id="newTaskModal" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Adicionar Nova Atividade ao Fechamento</h3>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nome da Atividade</label>
+          <input type="text" id="newTaskName" class="text-input" placeholder="Ex: Conciliação Cartões de Crédito" />
+        </div>
+        <div class="form-group">
+          <label>Área Contábil</label>
+          <select id="newTaskArea" class="select-input"></select>
+        </div>
+        <div class="form-group">
+          <label>Responsável / Prazo (Opcional)</label>
+          <input type="text" id="newTaskOwner" class="text-input" placeholder="Ex: Jefferson • 6º dia útil" />
+        </div>
+        <div class="modal-note">
+          ℹ️ Esta atividade será criada no mês atual e replicada automaticamente para todos os meses posteriores como <strong>Não Iniciado</strong>.
+        </div>
+        <div class="modal-actions">
+          <button class="btn" onclick="closeNewTaskModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="saveNewTask()">Salvar Atividade</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR ATIVIDADE -->
+  <div id="editTaskModal" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Editar Atividade #<span id="editTaskNumLabel"></span></h3>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editTaskId" />
+        <div class="form-group">
+          <label>Título da Tarefa</label>
+          <input type="text" id="editTaskName" class="text-input" placeholder="Digite o título da tarefa" />
+        </div>
+        <div class="form-group">
+          <label>Pessoa Responsável</label>
+          <input type="text" id="editTaskOwner" class="text-input" placeholder="Ex: Jefferson, Contabilidade, Fiscal..." />
+        </div>
+        <div class="form-group">
+          <label>Área Contábil</label>
+          <select id="editTaskArea" class="select-input"></select>
+        </div>
+        <div class="modal-note">
+          ℹ️ A alteração será aplicada no mês atual e replicada automaticamente para todos os meses seguintes.
+        </div>
+        <div class="modal-actions">
+          <button class="btn" onclick="closeEditTaskModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="saveEditedTask()">Salvar Alterações</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR RELATÓRIO PENDENTE -->
+  <div id="editReportModal" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Editar Relatório Pendente</h3>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editReportId" />
+        <div class="form-group">
+          <label>Nome / Descrição do Relatório</label>
+          <input type="text" id="editReportTitle" class="text-input" placeholder="Ex: Verbas, FINIMP, Relatório de PA..." />
+        </div>
+        <div class="form-group">
+          <label>Setor / Área Solicitante</label>
+          <input type="text" id="editReportDept" class="text-input" placeholder="Ex: Financeiro, Fiscal, Controladoria..." />
+        </div>
+        <div class="form-group">
+          <label>Previsão / Prazo</label>
+          <input type="text" id="editReportDue" class="text-input" placeholder="Ex: 5º dia útil ou A definir" />
+        </div>
+        <div class="modal-note">
+          ℹ️ As alterações serão aplicadas no mês atual e replicadas automaticamente para os meses seguintes.
+        </div>
+        <div class="modal-actions">
+          <button class="btn" onclick="closeEditReportModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="saveEditedReport()">Salvar Alterações</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL NOVA ÁREA CONTÁBIL -->
+  <div id="newAreaModal" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Adicionar Nova Área Contábil</h3>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nome da Área Contábil</label>
+          <input type="text" id="newAreaNameInput" class="text-input" placeholder="Ex: Controladoria & Custos" />
+        </div>
+        <div class="modal-note">
+          ℹ️ A nova área ficará disponível imediatamente no Dashboard, nos filtros e nas opções de seleção ao criar ou editar tarefas.
+        </div>
+        <div class="modal-actions">
+          <button class="btn" onclick="closeNewAreaModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="saveNewArea()">Criar Área</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR NOME DA ÁREA CONTÁBIL -->
+  <div id="editAreaModal" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Renomear Área Contábil</h3>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editAreaIndex" />
+        <div class="form-group">
+          <label>Novo Nome da Área Contábil</label>
+          <input type="text" id="editAreaNameInput" class="text-input" placeholder="Ex: Fiscal & Tributário" />
+        </div>
+        <div class="modal-note">
+          ℹ️ O nome será atualizado no Dashboard, nos filtros e em todas as tarefas deste mês e dos próximos.
+        </div>
+        <div class="modal-actions">
+          <button class="btn" onclick="closeEditAreaModal()">Cancelar</button>
+          <button class="btn btn-primary" onclick="saveEditedArea()">Atualizar Área</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EXCLUIR ÁREA CONTÁBIL -->
+  <div id="deleteAreaModal" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header danger">
+        <h3>Excluir Área Contábil</h3>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="deleteAreaIndex" />
+        <p style="font-size: 0.9rem; margin-bottom: 12px;">
+          Tem certeza que deseja excluir a área <strong id="deleteAreaNameLabel"></strong>?
+        </p>
+        <div id="deleteAreaReassignGroup" class="form-group" style="display:none;">
+          <label>Existem <strong id="deleteAreaTaskCount"></strong> tarefas vinculadas a esta área. Para qual área deseja transferi-las neste mês e nos próximos?</label>
+          <select id="deleteAreaTargetSelect" class="select-input"></select>
+        </div>
+        <div class="modal-note">
+          ℹ️ A área será removida do painel e das listas de seleção em todas as competências.
+        </div>
+        <div class="modal-actions">
+          <button class="btn" onclick="closeDeleteAreaModal()">Cancelar</button>
+          <button class="btn btn-danger" onclick="confirmDeleteArea()">Excluir Área</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EXCLUIR TAREFA -->
+  <div id="deleteTaskModal" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header danger">
+        <h3>Excluir Atividade #<span id="deleteTaskNumLabel"></span></h3>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="deleteTaskId" />
+        <p style="font-size: 0.92rem; margin-bottom: 10px;">
+          Deseja excluir a atividade <strong id="deleteTaskNameLabel"></strong>?
+        </p>
+        <div class="modal-note">
+          ℹ️ Ela será removida da competência atual (<strong id="deleteTaskCompLabel"></strong>) e de todos os meses seguintes automaticamente, preservando o histórico dos meses anteriores.
+        </div>
+        <div class="modal-actions">
+          <button class="btn" onclick="closeDeleteTaskModal()">Cancelar</button>
+          <button class="btn btn-danger" onclick="confirmDeleteTask()">Excluir Atividade</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- SDK DO FIREBASE (COMPATIBILIDADE SIMPLES VIA CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <!-- SUAS CHAVES DO FIREBASE E PIN DA SALA -->
+  <script src="firebase-config.js"></script>
+
+  <!-- LÓGICA PRINCIPAL DO PAINEL -->
+  <script src="script.js"></script>
+</body>
+</html>
