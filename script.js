@@ -5,6 +5,7 @@ const FIRESTORE_DOC_ID = "fechamento_mensal_equipe";
 
 // Calendário de Novembro/2026 até Dezembro/2028 (26 meses)
 const COMPETENCIAS = [
+  "Outubro / 2026",
   "Novembro / 2026",
   "Dezembro / 2026",
   "Janeiro / 2027",
