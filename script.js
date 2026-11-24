@@ -318,10 +318,28 @@ function switchTab(tabName, btnEl) {
   }
 }
 
-function goToFilteredTasks(statusFilter) {
-  document.getElementById("filterStatusSelect").value = statusFilter;
+function goToFilteredTasks(statusFilter = "ALL", areaFilter = "ALL") {
+  const statusSelect = document.getElementById("filterStatusSelect");
+  if (statusSelect) {
+    statusSelect.value = statusFilter;
+  }
+
+  const areaSelect = document.getElementById("filterAreaSelect");
+  if (areaSelect) {
+    const validArea =
+      areaFilter === "ALL" || state.areas.includes(areaFilter)
+        ? areaFilter
+        : "ALL";
+    areaSelect.value = validArea;
+  }
+
   switchTab("atividades");
   renderTasks();
+}
+
+function goToAreaTasks(areaIndex) {
+  const selectedArea = state.areas[areaIndex];
+  goToFilteredTasks("ALL", selectedArea || "ALL");
 }
 
 // ==========================================
@@ -392,14 +410,14 @@ function renderDashboard() {
     const areaPct = list.length ? Math.round((areaDone / list.length) * 100) : 0;
     const canDelete = state.areas.length > 1;
     return `
-      <div class="area-bar-item">
+      <div class="area-bar-item" onclick="goToAreaTasks(${idx})" style="cursor:pointer;" title="Clique para ver as atividades">
         <div class="area-bar-top">
           <span class="area-title-group">
-            <span class="area-title-editable" onclick="openEditAreaModal(${idx})" title="Clique para renomear esta área contábil">
+            <span class="area-title-editable" onclick="event.stopPropagation(); openEditAreaModal(${idx})" title="Clique para renomear esta área contábil">
               ${escapeHtml(area)}
             </span>
-            <button class="area-action-btn area-edit-btn" onclick="openEditAreaModal(${idx})" title="Editar nome da área">✏️</button>
-            ${canDelete ? `<button class="area-action-btn area-del-btn" onclick="openDeleteAreaModal(${idx})" title="Excluir área contábil">🗑</button>` : ""}
+            <button class="area-action-btn area-edit-btn" onclick="event.stopPropagation(); openEditAreaModal(${idx})" title="Editar nome da área">✏️</button>
+            ${canDelete ? `<button class="area-action-btn area-del-btn" onclick="event.stopPropagation(); openDeleteAreaModal(${idx})" title="Excluir área contábil">🗑</button>` : ""}
           </span>
           <span class="area-stats-pill">${areaDone}/${list.length} (${areaPct}%)</span>
         </div>
