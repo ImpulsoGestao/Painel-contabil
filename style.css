@@ -205,21 +205,19 @@ body {
   align-items: center;
   gap: 14px;
 }
-
 .brand-logo {
   width: 44px;
   height: 44px;
   border-radius: 11px;
-  background: #073734;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: #083d39; /* ou #111827 para grafite neutro */
+  border: 1px solid rgba(255, 255, 255, 0.18);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: none;
-  flex-shrink: 0;
   overflow: hidden;
 }
+
 
 .brand-title-row {
   display: flex;
