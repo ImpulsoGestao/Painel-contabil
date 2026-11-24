@@ -79,7 +79,7 @@ body {
 .pin-overlay {
   position: fixed;
   inset: 0;
-  background: linear-gradient(135deg, var(--navy-950) 0%, var(--navy-800) 100%);
+  background: #073734;
   display: none;
   align-items: center;
   justify-content: center;
